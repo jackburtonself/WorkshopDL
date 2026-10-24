@@ -30,6 +30,8 @@ void showAboutDialog(QWidget *parent) {
 void Window::createMenus() {
     auto *folderMenuBar = new QMenuBar(menuBar());
     folderMenuBar->setNativeMenuBar(false);
+    auto *changeDownloadsFolder = folderMenuBar->addAction(QStringLiteral("&Change download folder…"));
+    changeDownloadsFolder->setObjectName(QStringLiteral("changeDownloadsFolder"));
     auto *downloadsFolder = folderMenuBar->addAction(QStringLiteral("Downloads &folder"));
     downloadsFolder->setObjectName(QStringLiteral("downloadsFolder"));
     menuBar()->setCornerWidget(folderMenuBar, Qt::TopRightCorner);
@@ -37,10 +39,13 @@ void Window::createMenus() {
         QDir().mkpath(engine.root);
         QDesktopServices::openUrl(QUrl::fromLocalFile(engine.root));
     };
+    connect(changeDownloadsFolder, &QAction::triggered, this, &Window::changeDownloadFolder);
     connect(downloadsFolder, &QAction::triggered, this, openDownloads);
     connect(ui->actionAddLinks, &QAction::triggered, this, &Window::pasteMultiple);
     connect(ui->actionImportLinks, &QAction::triggered, this, &Window::importList);
     connect(ui->actionExportQueue, &QAction::triggered, this, &Window::exportList);
+    ui->actionChangeDownloads->setIcon(uiIcon(QStringLiteral("folder")));
+    connect(ui->actionChangeDownloads, &QAction::triggered, this, &Window::changeDownloadFolder);
     ui->actionOpenDownloads->setIcon(uiIcon(QStringLiteral("folder")));
     connect(ui->actionOpenDownloads, &QAction::triggered, this, openDownloads);
     connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
@@ -61,6 +66,8 @@ void Window::createMenus() {
     });
     connect(cancel, &QAction::triggered, this, [this] {
         downloadWhenReady.clear();
+        activeServerSyncId.clear();
+        pendingServerSyncIds.clear();
         if (engine.busy)
             engine.cancel();
         refresh();
@@ -104,7 +111,7 @@ void Window::createMenus() {
     auto *viewMenu = ui->viewMenu;
     auto *views = new QActionGroup(viewMenu);
     const QList<QAction *> viewActions{ui->actionBrowser, ui->actionManual, ui->actionLibrary,
-                                       ui->actionModManager};
+                                       ui->actionModManager, ui->actionServerManager};
     for (int index = 0; index < viewActions.size(); ++index) {
         auto *action = viewActions[index];
         action->setData(index);

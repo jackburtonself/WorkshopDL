@@ -88,6 +88,8 @@ void Window::setupBrowser() {
     queueMenu->addAction(QStringLiteral("Import collection…"), this, &Window::collectionImport);
     queueMenu->addAction(QStringLiteral("Clear completed"), this, &Window::clearCompleted);
     queueMenu->addAction(QStringLiteral("Open full queue"), this, [this] { tabs->setCurrentIndex(1); });
+    queueMenu->addSeparator();
+    queueMenu->addAction(QStringLiteral("Change download folder…"), this, &Window::changeDownloadFolder);
     configureTable(browserQueue, &queue);
     browserQueue->hideColumn(1);
     browserQueue->hideColumn(2);
@@ -115,6 +117,8 @@ void Window::setupBrowser() {
     });
     connect(browserCancel, &QPushButton::clicked, this, [this] {
         downloadWhenReady.clear();
+        activeServerSyncId.clear();
+        pendingServerSyncIds.clear();
         if (engine.busy)
             engine.cancel();
         refresh();

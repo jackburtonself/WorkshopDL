@@ -112,6 +112,10 @@ QString gameName(const QString &id) {
         if (p.id == id)
             return p.name;
     static const QHash<QString, QString> names{
+        {QStringLiteral("602960"), QStringLiteral("Barotrauma")},
+        {QStringLiteral("1026340"), QStringLiteral("Barotrauma Dedicated Server")},
+        {QStringLiteral("1281930"), QStringLiteral("tModLoader")},
+        {QStringLiteral("105600"), QStringLiteral("Terraria")},
         {QStringLiteral("4000"), QStringLiteral("Garry's Mod")},
         {QStringLiteral("294100"), QStringLiteral("RimWorld")},
         {QStringLiteral("550"), QStringLiteral("Left 4 Dead 2")},

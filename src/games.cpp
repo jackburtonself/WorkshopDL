@@ -28,6 +28,9 @@ QJsonObject installedRecords(QString *error) {
 }
 QList<GameProfile> gameProfiles() {
     return {
+        {QStringLiteral("602960"), QStringLiteral("Barotrauma"), QStringLiteral("LocalMods"),
+         QStringLiteral("folder"),
+         QStringLiteral("Local mod folders in LocalMods. Enable them in config_player.xml or server settings.")},
         {QStringLiteral("4000"), QStringLiteral("Garry's Mod"), QStringLiteral("garrysmod/addons"),
          QStringLiteral("gma"), QStringLiteral("GMA archives are extracted into addon folders.")},
         {QStringLiteral("294100"), QStringLiteral("RimWorld"), QStringLiteral("Mods"),
@@ -459,15 +462,29 @@ QString installContent(const Item &item, const QString &destination) {
         for (const auto &ext : profile.format.mid(6).split(QLatin1Char(',')))
             filters << QLatin1Char('*') + ext;
         QDirIterator it(item.path, filters, QDir::Files, QDirIterator::Subdirectories);
-        QSet<QString> names;
+        QHash<QString, QString> bestByFilename;
+        QHash<QString, QString> originalCase;
         while (it.hasNext()) {
             const auto source = it.next();
             const auto filename = QFileInfo(source).fileName();
-            if (names.contains(filename.toCaseFolded()))
-                return fail(QStringLiteral("The package contains conflicting filenames."));
-            names.insert(filename.toCaseFolded());
-            sources.append({source, filename});
+            const auto folded = filename.toCaseFolded();
+            if (!bestByFilename.contains(folded)) {
+                bestByFilename.insert(folded, source);
+                originalCase.insert(folded, filename);
+            } else {
+                const QString prev = bestByFilename.value(folded);
+                const auto prevVer = QVersionNumber::fromString(QFileInfo(prev).dir().dirName());
+                const auto curVer = QVersionNumber::fromString(QFileInfo(source).dir().dirName());
+                if ((!curVer.isNull() && (prevVer.isNull() || curVer > prevVer)) ||
+                    (curVer == prevVer &&
+                     QFileInfo(source).lastModified() >= QFileInfo(prev).lastModified())) {
+                    bestByFilename.insert(folded, source);
+                    originalCase.insert(folded, filename);
+                }
+            }
         }
+        for (auto mapIt = bestByFilename.cbegin(); mapIt != bestByFilename.cend(); ++mapIt)
+            sources.append({mapIt.value(), originalCase.value(mapIt.key())});
         if (sources.isEmpty())
             return fail(QStringLiteral("No matching game packages found (%1).").arg(profile.format.mid(6)));
     } else if (profile.format == QStringLiteral("ark")) {

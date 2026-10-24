@@ -17,6 +17,9 @@ Window::Window(ItemModel &queueModel, ItemModel &libraryModel, Engine &downloadE
     input = ui->input;
     search = ui->search;
     address = ui->address;
+    downloadFolderEdit = ui->downloadFolderEdit;
+    changeDownloadFolderButton = ui->changeDownloadFolderButton;
+    openDownloadFolderButton = ui->openDownloadFolderButton;
     summary = ui->summary;
     details = ui->details;
     pageTitle = ui->pageTitle;
@@ -48,6 +51,21 @@ Window::Window(ItemModel &queueModel, ItemModel &libraryModel, Engine &downloadE
     modFolder = ui->modFolder;
     modActivation = ui->modActivation;
     modLauncher = ui->modLauncher;
+    setModFolderButton = ui->setModFolderButton;
+    serverList = ui->serverList;
+    addServerButton = ui->addServerButton;
+    editServerButton = ui->editServerButton;
+    removeServerButton = ui->removeServerButton;
+    addServerModsButton = ui->addServerModsButton;
+    syncServerButton = ui->syncServerButton;
+    syncAllServersButton = ui->syncAllServersButton;
+    checkServerUpdatesButton = ui->checkServerUpdatesButton;
+    setServerFolderButton = ui->setServerFolderButton;
+    openServerFolderButton = ui->openServerFolderButton;
+    removeServerModsButton = ui->removeServerModsButton;
+    serverFolderLabel = ui->serverFolderLabel;
+    serverModsView = ui->serverModsView;
+    serverNoteLabel = ui->serverNoteLabel;
     setWindowIcon(QIcon(QStringLiteral(":/branding/workshopdl.png")));
     auto *statusPanel = new QWidget(this);
     Ui::StatusPanel statusUi;
@@ -76,6 +94,7 @@ Window::Window(ItemModel &queueModel, ItemModel &libraryModel, Engine &downloadE
     setupBrowser();
     setupLibrary();
     setupInstalled();
+    setupServers();
     createMenus();
     connect(&engine, &Engine::activity, this, [this](const QString &text) {
         activity->setText(text);
@@ -98,6 +117,11 @@ Window::Window(ItemModel &queueModel, ItemModel &libraryModel, Engine &downloadE
     });
     connect(&engine, &Engine::busyChanged, this, [this](bool busy) {
         refresh();
+        if (!busy && !activeServerSyncId.isEmpty()) {
+            automaticInstalls.clear();
+            finishServerDownloadRun();
+            return;
+        }
         if (!busy && engine.settings.value(QStringLiteral("openAfter"), false).toBool() &&
             !lastCompletedPath.isEmpty()) {
             QDesktopServices::openUrl(QUrl::fromLocalFile(lastCompletedPath));
@@ -174,12 +198,14 @@ Window::Window(ItemModel &queueModel, ItemModel &libraryModel, Engine &downloadE
         }
         if (index == 3)
             reloadInstalled();
+        if (index == 4)
+            reloadServers();
         engine.settings.setValue(QStringLiteral("lastTab"), index);
     });
     if (engine.settings.value(QStringLiteral("rememberTab"), true).toBool())
-        tabs->setCurrentIndex(qBound(0, engine.settings.value(QStringLiteral("lastTab"), 0).toInt(), 3));
+        tabs->setCurrentIndex(qBound(0, engine.settings.value(QStringLiteral("lastTab"), 0).toInt(), 4));
     else
-        tabs->setCurrentIndex(qBound(0, engine.settings.value(QStringLiteral("startupTab"), 0).toInt(), 3));
+        tabs->setCurrentIndex(qBound(0, engine.settings.value(QStringLiteral("startupTab"), 0).toInt(), 4));
     restoreTabLayout(tabs->currentIndex());
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {
         if (!engine.settings.value(QStringLiteral("clipboardQueue")).toBool())
@@ -199,6 +225,7 @@ Window::Window(ItemModel &queueModel, ItemModel &libraryModel, Engine &downloadE
         if (!error.isEmpty())
             appendLog(error);
         reloadInstalled();
+        reloadServers();
         refresh();
         if (engine.settings.value(QStringLiteral("checkModsAtStartup"), false).toBool())
             engine.checkLibrary();
@@ -262,6 +289,15 @@ void Window::setupDownloadMethods() {
 
 void Window::setupDownloads() {
     configureTable(queueView, &queue);
+    if (downloadFolderEdit)
+        downloadFolderEdit->setText(QDir::toNativeSeparators(engine.root));
+    if (changeDownloadFolderButton)
+        connect(changeDownloadFolderButton, &QPushButton::clicked, this, &Window::changeDownloadFolder);
+    if (openDownloadFolderButton)
+        connect(openDownloadFolderButton, &QPushButton::clicked, this, [this] {
+            QDir().mkpath(engine.root);
+            QDesktopServices::openUrl(QUrl::fromLocalFile(engine.root));
+        });
     connect(ui->pasteButton, &QPushButton::clicked, this,
             [this] { input->setText(QApplication::clipboard()->text()); });
     connect(ui->downloadNowButton, &QPushButton::clicked, this, [this] {
@@ -295,7 +331,10 @@ void Window::setupDownloads() {
     queueMenu->addSeparator();
     auto *clear = queueMenu->addAction(QStringLiteral("Clear completed"), this, &Window::clearCompleted);
     auto *retry = queueMenu->addAction(QStringLiteral("Retry failed"), this, &Window::retryFailed);
-    connect(queueMenu, &QMenu::aboutToShow, this, [this, remove, clear, retry] {
+    queueMenu->addSeparator();
+    auto *changeFolder = queueMenu->addAction(QStringLiteral("Change download folder…"), this,
+                                              &Window::changeDownloadFolder);
+    connect(queueMenu, &QMenu::aboutToShow, this, [this, remove, clear, retry, changeFolder] {
         const bool idle = !engine.busy && !diskBusy && engine.resolving == 0;
         bool completed = false, failed = false;
         for (const auto &item : queue.items) {
@@ -305,12 +344,15 @@ void Window::setupDownloads() {
         remove->setEnabled(idle && !selected(queueView, &queue).isEmpty());
         clear->setEnabled(idle && completed);
         retry->setEnabled(idle && failed);
+        changeFolder->setEnabled(idle);
     });
     auto *deleteKey = new QShortcut(QKeySequence::Delete, queueView);
     deleteKey->setContext(Qt::WidgetWithChildrenShortcut);
     connect(deleteKey, &QShortcut::activated, this, [this] { removeQueue(queueView); });
     connect(cancelButton, &QPushButton::clicked, this, [this] {
         downloadWhenReady.clear();
+        activeServerSyncId.clear();
+        pendingServerSyncIds.clear();
         if (engine.busy)
             engine.cancel();
         refresh();
@@ -451,6 +493,8 @@ void Window::addText(const QString &text) {
 void Window::refresh() {
     if (!startButton || !browserCount || !activity)
         return;
+    if (downloadFolderEdit)
+        downloadFolderEdit->setText(QDir::toNativeSeparators(engine.root));
     int ready = 0, done = 0, failed = 0;
     const Item *current = nullptr;
     for (const auto &i : queue.items) {
@@ -470,6 +514,8 @@ void Window::refresh() {
                          .arg(failed ? QStringLiteral(" · %1 failed").arg(failed) : QString()));
     browserCount->setText(QStringLiteral("%1 ready · %2 completed").arg(ready).arg(done));
     const bool canModifyQueue = !engine.busy && !diskBusy && engine.resolving == 0;
+    if (changeDownloadFolderButton)
+        changeDownloadFolderButton->setEnabled(canModifyQueue);
     startButton->setEnabled(canModifyQueue && ready > 0);
     browserStart->setEnabled(canModifyQueue && (ready > 0 || queue.items.isEmpty()));
     browserStart->setText(queue.items.isEmpty() ? QStringLiteral("Add links…")
@@ -528,10 +574,27 @@ void Window::refresh() {
     ui->importFolderButton->setEnabled(idle);
     ui->importPackageButton->setEnabled(idle);
     const bool hasInstalledSelection = installedView->selectionModel()->hasSelection();
+    if (setModFolderButton)
+        setModFolderButton->setEnabled(idle && !selectedModGame().isEmpty());
     ui->openInstalledFolderButton->setEnabled(idle && hasInstalledSelection);
     ui->toggleInstalledButton->setEnabled(idle && hasInstalledSelection);
     ui->uninstallButton->setEnabled(idle && hasInstalledSelection);
     modActivation->setEnabled(idle);
+    if (serverList && serverModsView) {
+        const bool hasServer = !selectedServerId().isEmpty();
+        const bool hasServerModSelection = serverModsView->selectionModel() &&
+                                           serverModsView->selectionModel()->hasSelection();
+        addServerButton->setEnabled(idle && engine.resolving == 0);
+        editServerButton->setEnabled(idle && engine.resolving == 0 && hasServer);
+        removeServerButton->setEnabled(idle && engine.resolving == 0 && hasServer);
+        addServerModsButton->setEnabled(idle && engine.resolving == 0 && hasServer);
+        syncServerButton->setEnabled(idle && engine.resolving == 0 && hasServer);
+        syncAllServersButton->setEnabled(idle && engine.resolving == 0 && !serverProfiles.isEmpty());
+        checkServerUpdatesButton->setEnabled(idle && engine.resolving == 0 && hasServer);
+        setServerFolderButton->setEnabled(idle && engine.resolving == 0 && hasServer);
+        openServerFolderButton->setEnabled(hasServer);
+        removeServerModsButton->setEnabled(idle && engine.resolving == 0 && hasServer && hasServerModSelection);
+    }
     progress->setVisible(engine.busy || diskBusy || pendingStart);
     if (current && current->progress >= 0) {
         progress->setRange(0, 100);
@@ -539,6 +602,8 @@ void Window::refresh() {
     } else
         progress->setRange(0, 0);
     tabs->setTabText(2, QStringLiteral("Library (%1)").arg(library.items.size()));
+    if (tabs->count() > 4)
+        tabs->setTabText(4, QStringLiteral("Server Manager (%1)").arg(serverProfiles.size()));
     syncBrowser();
     maybeStartDownloads();
 }

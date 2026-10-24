@@ -53,7 +53,8 @@ SOURCES += \
     $$PWD/src/library_filter.cpp \
     $$PWD/src/maintenance.cpp \
     $$PWD/src/icons.cpp \
-    $$PWD/src/bookmarks.cpp
+    $$PWD/src/bookmarks.cpp \
+    $$PWD/src/servers.cpp
 HEADERS += \
     $$PWD/src/item_model.h \
     $$PWD/src/storage.h \

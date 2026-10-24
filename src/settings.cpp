@@ -2,6 +2,37 @@
 #include "ui_settingsdialog.h"
 #include <QStyleFactory>
 
+void Window::changeDownloadFolder() {
+    if (engine.busy || diskBusy) {
+        QMessageBox::information(
+            this, QStringLiteral("Operation in progress"),
+            QStringLiteral("Wait for the current operation to finish before changing the download folder."));
+        return;
+    }
+    const QString chosen =
+        QFileDialog::getExistingDirectory(this, QStringLiteral("Select download folder"), engine.root);
+    if (chosen.isEmpty())
+        return;
+    const QString path = QDir::cleanPath(chosen.trimmed());
+    if (!QDir::isAbsolutePath(path) || !QDir().mkpath(path)) {
+        QMessageBox::warning(this, QStringLiteral("Download folder"),
+                             QStringLiteral("Choose a writable absolute folder."));
+        return;
+    }
+    QTemporaryFile probe(path + QStringLiteral("/.write-check-XXXXXX"));
+    if (!probe.open()) {
+        QMessageBox::warning(this, QStringLiteral("Download folder"), probe.errorString());
+        return;
+    }
+    engine.root = path;
+    engine.settings.setValue(QStringLiteral("downloads"), path);
+    engine.persist();
+    if (downloadFolderEdit)
+        downloadFolderEdit->setText(QDir::toNativeSeparators(path));
+    activity->setText(QStringLiteral("Download folder set to ") + QDir::toNativeSeparators(path));
+    refresh();
+}
+
 void Window::settingsDialog() {
     QDialog dialog(this);
     Ui::SettingsDialog form;
@@ -71,7 +102,7 @@ void Window::settingsDialog() {
     loadCheck(after, QStringLiteral("openAfter"), false);
     loadCheck(autoInstall, QStringLiteral("autoInstall"), false);
     loadCheck(updates, QStringLiteral("automaticUpdates"), false);
-    startup->setCurrentIndex(qBound(0, engine.settings.value(QStringLiteral("startupTab"), 0).toInt(), 3));
+    startup->setCurrentIndex(qBound(0, engine.settings.value(QStringLiteral("startupTab"), 0).toInt(), 4));
     startup->setEnabled(!remember->isChecked());
     connect(remember, &QCheckBox::toggled, startup, [startup](bool on) { startup->setEnabled(!on); });
     directory->setText(engine.root);
@@ -124,10 +155,10 @@ void Window::settingsDialog() {
         }
         const QString path = QDir::cleanPath(directory->text().trimmed()),
                       executable = QDir::cleanPath(steam->text().trimmed());
-        if (!QDir::isAbsolutePath(path) || linkedAncestor(path) || !QDir().mkpath(path)) {
+        if (!QDir::isAbsolutePath(path) || !QDir().mkpath(path)) {
             QMessageBox::warning(
                 &dialog, QStringLiteral("Download folder"),
-                QStringLiteral("Choose a writable absolute folder without directory links."));
+                QStringLiteral("Choose a writable absolute folder."));
             return;
         }
         QTemporaryFile probe(path + QStringLiteral("/.write-check-XXXXXX"));

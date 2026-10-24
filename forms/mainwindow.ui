@@ -713,6 +713,41 @@
              </item>
             </layout>
            </item>
+           <item>
+            <layout class="QHBoxLayout" name="downloadFolderRow" stretch="0,1,0,0">
+             <item>
+              <widget class="QLabel" name="downloadFolderLabel">
+               <property name="text">
+                <string>Download folder:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="downloadFolderEdit">
+               <property name="readOnly">
+                <bool>true</bool>
+               </property>
+               <property name="placeholderText">
+                <string>Default download folder</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="changeDownloadFolderButton">
+               <property name="text">
+                <string>Change folder…</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="openDownloadFolderButton">
+               <property name="text">
+                <string>Open folder</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
           </layout>
          </widget>
         </item>
@@ -1119,6 +1154,13 @@
              </spacer>
             </item>
             <item>
+             <widget class="QPushButton" name="setModFolderButton">
+              <property name="text">
+               <string>Set mod folder…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QPushButton" name="openInstalledFolderButton">
               <property name="text">
                <string>Open folder</string>
@@ -1222,6 +1264,228 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="serverPage">
+       <attribute name="title">
+        <string>Server Manager</string>
+       </attribute>
+       <attribute name="toolTip">
+        <string>Create server profiles and manage Workshop mod and collection installations per server</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="serverLayout" stretch="0,1">
+        <property name="leftMargin">
+         <number>8</number>
+        </property>
+        <property name="topMargin">
+         <number>8</number>
+        </property>
+        <property name="rightMargin">
+         <number>8</number>
+        </property>
+        <property name="bottomMargin">
+         <number>8</number>
+        </property>
+        <item>
+         <layout class="QVBoxLayout" name="serverSidebarLayout" stretch="1,0">
+          <item>
+           <widget class="QListWidget" name="serverList">
+            <property name="minimumSize">
+             <size>
+              <width>210</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>260</width>
+              <height>16777215</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="serverListButtons">
+            <item>
+             <widget class="QPushButton" name="addServerButton">
+              <property name="text">
+               <string>New server…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="editServerButton">
+              <property name="text">
+               <string>Edit…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="removeServerButton">
+              <property name="text">
+               <string>Delete</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="serverMainLayout" stretch="0,0,1,0">
+          <item>
+           <layout class="QHBoxLayout" name="serverToolbar">
+            <item>
+             <widget class="QPushButton" name="addServerModsButton">
+              <property name="text">
+               <string>Add mods / collections…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="syncServerButton">
+              <property name="text">
+               <string>Sync &amp;&amp; update server</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="syncAllServersButton">
+              <property name="text">
+               <string>Update all servers</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="checkServerUpdatesButton">
+              <property name="text">
+               <string>Check updates</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="serverToolbarSpace">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QPushButton" name="setServerFolderButton">
+              <property name="text">
+               <string>Set mods folder…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="openServerFolderButton">
+              <property name="text">
+               <string>Open folder</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="removeServerModsButton">
+              <property name="text">
+               <string>Remove selected…</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QLabel" name="serverFolderLabel">
+            <property name="text">
+             <string />
+            </property>
+            <property name="textFormat">
+             <enum>Qt::TextFormat::PlainText</enum>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="textInteractionFlags">
+             <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTableWidget" name="serverModsView">
+            <property name="contextMenuPolicy">
+             <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+            </property>
+            <property name="editTriggers">
+             <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+            </property>
+            <property name="alternatingRowColors">
+             <bool>true</bool>
+            </property>
+            <property name="selectionMode">
+             <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+            </property>
+            <property name="selectionBehavior">
+             <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+            </property>
+            <property name="showGrid">
+             <bool>false</bool>
+            </property>
+            <property name="wordWrap">
+             <bool>false</bool>
+            </property>
+            <attribute name="verticalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="verticalHeaderDefaultSectionSize">
+             <number>28</number>
+            </attribute>
+            <column>
+             <property name="text">
+              <string>Mod</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Source</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Status</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Workshop ID</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Server Destination</string>
+             </property>
+            </column>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="serverNoteLabel">
+            <property name="text">
+             <string />
+            </property>
+            <property name="textFormat">
+             <enum>Qt::TextFormat::PlainText</enum>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -1243,6 +1507,7 @@
     <addaction name="actionImportLinks" />
     <addaction name="actionExportQueue" />
     <addaction name="separator" />
+    <addaction name="actionChangeDownloads" />
     <addaction name="actionOpenDownloads" />
     <addaction name="separator" />
     <addaction name="actionExit" />
@@ -1296,6 +1561,7 @@
     <addaction name="actionLibrary" />
     <addaction name="separator" />
     <addaction name="actionModManager" />
+    <addaction name="actionServerManager" />
     <addaction name="separator" />
     <addaction name="actionActivityLog" />
    </widget>
@@ -1472,6 +1738,22 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+4</string>
+   </property>
+  </action>
+  <action name="actionServerManager">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Server Manager</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+5</string>
+   </property>
+  </action>
+  <action name="actionChangeDownloads">
+   <property name="text">
+    <string>Change download folder…</string>
    </property>
   </action>
   <action name="actionActivityLog">

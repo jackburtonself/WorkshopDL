@@ -77,6 +77,31 @@ QString Window::selectedModGame() const {
     return modGames && modGames->currentItem() ? modGames->currentItem()->data(Qt::UserRole).toString()
                                                : QString();
 }
+void Window::setModGameFolder() {
+    if (engine.busy || diskBusy)
+        return;
+    const QString game = selectedModGame();
+    if (game.isEmpty())
+        return;
+    QString current = engine.settings.value(QStringLiteral("destinations/") + game).toString();
+    if (current.isEmpty())
+        current = gameDestination(game, engine.settings.value(QStringLiteral("gameFolders/") + game).toString());
+    const QString chosen = QFileDialog::getExistingDirectory(
+        this, QStringLiteral("Select mod folder for %1").arg(profileFor(game).name), current);
+    if (chosen.isEmpty())
+        return;
+    const QString clean = QDir::cleanPath(chosen.trimmed());
+    if (!QDir::isAbsolutePath(clean) || !QDir().mkpath(clean)) {
+        QMessageBox::warning(this, QStringLiteral("Mod folder"),
+                             QStringLiteral("Choose a writable absolute folder."));
+        return;
+    }
+    engine.settings.setValue(QStringLiteral("destinations/") + game, clean);
+    engine.persist();
+    reloadInstalled();
+    activity->setText(QStringLiteral("%1 mod folder set to %2")
+                          .arg(profileFor(game).name, QDir::toNativeSeparators(clean)));
+}
 void Window::setupInstalled() {
     for (const auto &p : gameProfiles()) {
         auto *item = new QListWidgetItem(p.name, modGames);
@@ -89,6 +114,8 @@ void Window::setupInstalled() {
         if (validId(id))
             QDesktopServices::openUrl(QUrl(QStringLiteral("steam://rungameid/") + id));
     });
+    if (setModFolderButton)
+        connect(setModFolderButton, &QPushButton::clicked, this, &Window::setModGameFolder);
     connect(ui->openInstalledFolderButton, &QPushButton::clicked, this,
             [this] { installedAction(QStringLiteral("open")); });
     connect(ui->toggleInstalledButton, &QPushButton::clicked, this,
@@ -131,7 +158,7 @@ void Window::reloadInstalled() {
         }
     if (root.isEmpty())
         root = gameDestination(game, engine.settings.value(QStringLiteral("gameFolders/") + game).toString());
-    modFolder->setText(root.isEmpty() ? QStringLiteral("No mod folder set. Choose one when installing.")
+    modFolder->setText(root.isEmpty() ? QStringLiteral("No mod folder set. Click 'Set mod folder…' or choose one when installing.")
                                       : QStringLiteral("Mod folder: ") + QDir::toNativeSeparators(root));
     const auto states = activationState(game, configFor(game, root));
     installedView->setRowCount(0);

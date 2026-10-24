@@ -131,6 +131,11 @@
                     <string>Mod Manager (Experimental)</string>
                    </property>
                   </item>
+                  <item>
+                   <property name="text">
+                    <string>Server Manager</string>
+                   </property>
+                  </item>
                  </widget>
                 </item>
                </layout>
